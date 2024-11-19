@@ -14,13 +14,13 @@
 
 #define SCROLL_DELAY 50000  
 #define JUMP_DELAY 100000   
-#define POWER_UP_CHANCE 20  // Chance d'apparition d'un power-up (1-100)
 
 #define clear() printf("\033[H\033[J")
 #define SCREEN_WIDTH 50
 #define SCREEN_HEIGHT 10
 #define PLAYER_COL 4
-#define MAX_LIVES 1
+#define PLAYER_ROW 1
+#define MAX_LIVES 3
 #define INVINCIBILITY_DURATION 2  // Seconds of invincibility after hit
 
 typedef struct {
@@ -41,13 +41,6 @@ typedef struct {
     int ground_level;
 } PlayerJumpState;
 
-
-typedef enum { NONE, SPEED, SHIELD, DOUBLE_SCORE } PowerUpType;
-
-typedef struct {
-    PowerUpType type;
-    int position;
-} PowerUp;
 
 typedef struct {
     bool is_jumping;
@@ -84,8 +77,7 @@ void init_game_state(GameState* state) {
 void display_game_stats(GameState* state) {
     printf("\033[H\033[20;0H"); // Move cursor to bottom of screen
     printf("\033[K"); // Clear line
-    printf("Score: %d | Lives: %d | Speed: %d\n", 
-           state->score, state->lives, state->current_speed);
+    printf("Score: %d | Lives: %d | Speed: %d\n", state->score, state->lives, state->current_speed);
 }
 
 // Fonction pour gérer la fin de partie
@@ -200,7 +192,6 @@ void init_board(int row, int col, char board[row][col]) {
   }
 }
 
-const int PLAYER_ROW = 1;  // Colonne fixe pour le personnage
 
 
 
@@ -246,7 +237,7 @@ void jump_character(char board[SCREEN_HEIGHT][SCREEN_WIDTH], enum Player_class p
     for (int i = 0; i < SCREEN_HEIGHT; i++) {
         for (int j = PLAYER_COL - 2; j <= PLAYER_COL + 2; j++) {
             if (j >= 0 && j < SCREEN_WIDTH && i > 0) {
-                if (board[i][j] != 'I') {
+                if (board[i][j] != 'I' && board[i][j] != 'D') {
                       board[i][j] = ' ';
                 }
                 }
@@ -313,7 +304,9 @@ void clear_character(int row, int col, char board[row][col], int pos, int height
     for (int i = height; i < height + 6; i++) { // Supposant que la hauteur max est 6
         for (int j = pos - 2; j <= pos + 2; j++) { // Supposant que la largeur max est 2
             if (i >= 0 && i < row && j >= 0 && j < col) {
-                board[i][j] = ' '; // Effacer la case
+                if (board[i][j] != 'I' && board[i][j] != 'D') { // Ne pas effacer obstacles ni sol
+                    board[i][j] = ' '; // Effacer uniquement les zones sûres
+                }
             }
         }
     }
@@ -321,14 +314,16 @@ void clear_character(int row, int col, char board[row][col], int pos, int height
 
 
 
-
 int choose_difficulty() {
     clear();
+    printf("Pour Sauter appuyeZ sur w\n");
     printf("\n=== Choisissez la difficulté ===\n");
     printf("1. Facile (Débutant)\n");
     printf("2. Moyen (Intermédiaire)\n");
     printf("3. Difficile (Expert)\n");
     printf("\nVotre choix (1-3): ");
+    
+
     
     int choice;
     scanf("%d", &choice);
@@ -341,59 +336,76 @@ int choose_difficulty() {
 }
 
 
-bool check_collision(char board[SCREEN_HEIGHT][SCREEN_WIDTH], PlayerJumpState* jump_state) {
-    
-    return false;
-}
 
 
+bool check_collision_precise(char board[SCREEN_HEIGHT][SCREEN_WIDTH], 
+                             enum Player_class player, 
+                             int player_col, 
+                             int player_height, 
+                             bool is_on_ground,
+                             GameState* game_state) {
+    // Définir les zones de collision (offsets relatifs au personnage)
+    int offsets[][2] = {
+        {0, 0}, {1, 0}, {1, -1}, {1, 1},  // Torse et bras
+        {2, -1}, {2, 1}, {2, 0},          // Jambes
+    };
 
+    // Si le personnage est au sol, on ajuste les offsets
+    if (is_on_ground) {
+        offsets[0][0] = 1; offsets[0][1] = 0;  // Pieds
+        offsets[1][0] = 1; offsets[1][1] = -1; 
+        offsets[2][0] = 1; offsets[2][1] = 1;
+        offsets[3][0] = 0; offsets[3][1] = 0;  // Torse
+    }
 
-void generate_power_up(int row, int col, char board[row][col], PowerUp *power_up) {
-    if (rand() % 100 < POWER_UP_CHANCE) {
-        // Générer un power-up sur une position aléatoire
-        int pos = col - 1;  // Dernière colonne
-        int height = rand() % row;
-        int type = rand() % 3;
-        
-        power_up->type = type;
-        power_up->position = pos;
-        
-        // Choisir le type de power-up
-        if (type == 0) {
-            board[height][pos] = 'S';  // Vitesse
-        } else if (type == 1) {
-            board[height][pos] = 'B';  // Bouclier
-        } else {
-            board[height][pos] = 'D';  // Double Score
+    int count = sizeof(offsets) / sizeof(offsets[0]);
+
+    // Vérification de chaque zone
+    for (int i = 0; i < count; i++) {
+        int check_row = player_height + offsets[i][0];
+        int check_col = player_col + offsets[i][1];
+
+        // Vérifie si les coordonnées sont valides
+        if (check_row >= 0 && check_row < SCREEN_HEIGHT && 
+            check_col >= 0 && check_col < SCREEN_WIDTH) {
+            // Vérifie la collision avec un obstacle
+            if (board[check_row][check_col] == 'I' || board[check_row][check_col - 1] == 'I') {
+                
+                // Vérifie si le joueur est invincible
+                if (!game_state->is_invincible || (time(NULL) - game_state->invincibility_start) >= 2) {
+                    // Gère la collision
+                    if (!game_state->is_invincible) {
+                        game_state->lives--;  // Perte de vie
+                        game_state->is_invincible = true;  // Active l'invincibilité
+                        game_state->invincibility_start = time(NULL);  // Enregistre le moment où l'invincibilité commence
+
+                        // Si plus de vies, fin de jeu
+                        if (game_state->lives <= 0) {
+                            game_state->game_over = true;
+                            return true;
+                        }
+                        printf("Invincible pendant 2 secondes\n");
+                    }
+                }
+
+                // Vérifie si l'invincibilité a expiré
+                if (game_state->is_invincible && (time(NULL) - game_state->invincibility_start) >= 2) {
+                    game_state->is_invincible = false;  // Désactive l'invincibilité après 2 secondes
+                }
+            }
         }
     }
+
+    return false;  // Pas de collision
 }
 
-void collect_power_up(GameSettings *settings, PowerUp *power_up) {
-    // Si le personnage est sur le power-up
-    if (power_up->position == 4 && rand() % 10 == 0) {
-        switch (power_up->type) {
-            case SPEED:
-                settings->current_scroll_delay -= 2000;  // Augmenter la vitesse
-                break;
-            case SHIELD:
-                // Activer le bouclier
-                break;
-            case DOUBLE_SCORE:
-                settings->score *= 2;  // Doubler le score
-                break;
-            default:
-                break;
-        }
-        power_up->type = NONE;  // Désactiver le power-up après collecte
-    }
-}
+
+
 
 void next_level(GameSettings *settings, GameState *game_state) {
+    
     if (settings->score > 0 && settings->score % 50 == 0) {
         int level = settings->score / 50;
-        clear();
         printf("\n=== NIVEAU %d ===\n", level);
         printf("Préparez-vous pour un défi plus grand !\n");
         usleep(2000000); // Pause de 2 secondes entre les niveaux
@@ -415,7 +427,7 @@ void save_game(const char* filename, GameSettings* settings, GameState* game_sta
     fprintf(file, "Le score du jeu obtenu lors de la précédente partie est : %d", game_state->score);
     
     fclose(file);
-    printf("GAME OVER DOMMAGE !!!!\n");
+    printf("GAME OVER DOMMAGE !!!! (Si vous voulez éviter les obstacles les plus difficiles maintenenez w, mais arriverez-vous à le faire ? :)) )\n");
     printf("Jeu sauvegardé avec succès.\n");
 }
 
@@ -500,7 +512,6 @@ int main() {
         .ground_level = 1
     };
     int pos = 6;
-    int n = 0;
     time_t last_refresh, now;
     GameSettings settings;
 
@@ -514,7 +525,6 @@ int main() {
     char player_name[100]; 
 
     ask_for_player_name(filename);
-    sleep(10);
     
     int action = choose_game_action();
 
@@ -548,10 +558,10 @@ int main() {
     time(&last_refresh);
 
     int input;
-    clock_t last_update = clock();
 
     while (input != 'q') {
         move_track(board, &game_state);
+        next_level(&settings, &game_state);
           
         time(&now);
         if (now - last_refresh > gravity_time) {
@@ -565,8 +575,9 @@ int main() {
         // Mise à jour de la position du personnage
         jump_character(board, Class, &jump_state);
         
-        if (check_collision(board, &game_state)) {
-            break;
+        bool is_on_ground = !jump_state.is_jumping && !jump_state.is_falling;
+        if (check_collision_precise(board, Class, PLAYER_COL, jump_state.ground_level + jump_state.jump_height, is_on_ground, &game_state)) {
+            break; // Collision fatale
         }
         
         input = getch();
@@ -578,7 +589,7 @@ int main() {
 
         print_board(SCREEN_HEIGHT, SCREEN_WIDTH, board);
         display_game_stats(&game_state);
-        
+
         usleep(50000);  // Smooth game loop timing
     }
     stop_music();
@@ -587,6 +598,7 @@ int main() {
     clear();   
     save_game("save_game.txt", &settings, &game_state); 
     sleep(6);
+    
     clear();    
     return 0;
     }

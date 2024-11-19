@@ -261,7 +261,8 @@ void Afficher_la_musique(char *fichier_audio) {
         freopen("/dev/null", "w", stderr);  
         
         // Exécuter la commande mpg123 pour jouer le fichier audio
-        execlp("mpg123", "mpg123", "-v", "1.0", fichier_audio,"loop","-1",NULL);
+        execlp("mpg123", "mpg123", "--loop", "-1", "-q", fichier_audio, NULL);
+
         
         // Si execlp échoue, sortir avec un code d'erreur
         exit(1);
@@ -316,7 +317,7 @@ void clear_character(int row, int col, char board[row][col], int pos, int height
 
 int choose_difficulty() {
     clear();
-    printf("Pour Sauter appuyeZ sur w\n");
+    printf("Pour Sauter appuyez sur w\n");
     printf("\n=== Choisissez la difficulté ===\n");
     printf("1. Facile (Débutant)\n");
     printf("2. Moyen (Intermédiaire)\n");

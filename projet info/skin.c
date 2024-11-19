@@ -1,10 +1,9 @@
-
 #include <stdio.h>
 
-enum Player_class{Paladin,Druid,Berserker}; 
+enum Player_class { Paladin, Druid, Berserker };
 
 void init_character(int row, int col, char board[row][col], enum Player_class player, int pos, int height) {
-    // Efface la zone autour de la position du personnage pour ne pas avoir de résidus
+    // Efface la zone autour de la position du personnage
     clear_character(row, col, board, pos, height);
 
     // Vérifie si les indices sont valides avant de dessiner
@@ -12,54 +11,47 @@ void init_character(int row, int col, char board[row][col], enum Player_class pl
         return;
     }
 
+    // Dessin du personnage basé sur sa classe
     switch (player) {
-        case 0:  // Paladin
-            // Dessin complet du Paladin
-            board[height + 2][pos] = 'O';    // Tête
-            board[height + 1][pos] = '\\';   // Corps (partie gauche)
-            board[height + 1][pos + 1] = '|'; // Corps (torse)
-            board[height + 3][pos - 1] = '_'; // Bas du corps (gauche)
-            board[height + 3][pos] = '_';    // Bas du corps (milieu)
-            board[height + 1][pos - 1] = '0'; // Bras gauche
-            board[height][pos - 1] = '/';    // Jambes gauche
-            board[height][pos + 1] = '\\';   // Jambes droite
+        case Paladin: // Classe Paladin
+            if (board[height + 2][pos] == ' ') board[height + 2][pos] = 'O';    // Tête
+            if (board[height + 1][pos] == ' ') board[height + 1][pos] = '\\';   // Corps (partie gauche)
+            if (board[height + 1][pos + 1] == ' ') board[height + 1][pos + 1] = '|'; // Corps (torse)
+            if (board[height + 3][pos - 1] == ' ') board[height + 3][pos - 1] = '_'; // Bas du corps (gauche)
+            if (board[height + 3][pos] == ' ') board[height + 3][pos] = '_';    // Bas du corps (milieu)
+            if (board[height + 1][pos - 1] == ' ') board[height + 1][pos - 1] = '0'; // Bras gauche
+            if (board[height][pos - 1] == ' ') board[height][pos - 1] = '/';    // Jambes gauche
+            if (board[height][pos + 1] == ' ') board[height][pos + 1] = '\\';   // Jambes droite
             break;
 
-        case 1:  // Druid
-            // Dessin complet du Druid
-            board[height + 2][pos + 1] = '\\'; // Tête
-            board[height + 2][pos - 1] = '/';  // Tête
-            board[height + 2][pos] = 'O';      // Tête
-            board[height + 1][pos] = '\\';     // Corps (partie gauche)
-            board[height + 1][pos + 1] = '|';  // Corps (torse)
-            board[height + 3][pos] = '_';      // Bas du corps
-            board[height + 1][pos + 1] = '0';  // Bras droit
-            board[height][pos - 1] = '/';     // Jambes gauche
-            board[height][pos + 1] = '\\';    // Jambes droite
+        case Druid: // Classe Druid
+            if (board[height + 2][pos + 1] == ' ') board[height + 2][pos + 1] = '\\'; // Tête (droite)
+            if (board[height + 2][pos - 1] == ' ') board[height + 2][pos - 1] = '/';  // Tête (gauche)
+            if (board[height + 2][pos] == ' ') board[height + 2][pos] = 'O';          // Tête (centre)
+            if (board[height + 1][pos] == ' ') board[height + 1][pos] = '\\';         // Corps (partie gauche)
+            if (board[height + 1][pos + 1] == ' ') board[height + 1][pos + 1] = '|';  // Corps (torse)
+            if (board[height + 3][pos] == ' ') board[height + 3][pos] = '_';          // Bas du corps
+            if (board[height + 1][pos + 1] == ' ') board[height + 1][pos + 1] = '0';  // Bras droit
+            if (board[height][pos - 1] == ' ') board[height][pos - 1] = '/';         // Jambes gauche
+            if (board[height][pos + 1] == ' ') board[height][pos + 1] = '\\';        // Jambes droite
             break;
 
-        case 2:  // Berserker
-            // Dessin complet du Berserker
-            board[height + 2][pos + 1] = '_';  // Casque (partie droite)
-            board[height + 2][pos - 1] = '|';  // Casque (partie gauche)
-            board[height + 2][pos + 1] = '|';  // Casque (partie droite)
-            board[height + 4][pos] = '|';      // Ceinture
-            board[height + 5][pos] = 'O';      // Corps (partie supérieure)
-            board[height + 4][pos + 1] = '\\'; // Bras droit
-            board[height + 4][pos - 1] = '/'; // Bras gauche
-            board[height + 3][pos + 1] = '/'; // Bras droit
-            board[height + 3][pos - 1] = '\\'; // Bras gauche
-            board[height + 2][pos] = 'O';     // Tête
-            board[height + 1][pos] = '\\';    // Torse (gauche)
-            board[height + 1][pos + 1] = '|'; // Torse (droite)
-            board[height + 3][pos] = '_';     // Bas du corps
-            board[height + 1][pos + 1] = '*'; // Épée ?
-            board[height][pos - 1] = '/';     // Jambes gauche
-            board[height][pos + 1] = '\\';    // Jambes droite
+        case Berserker: // Classe Berserker
+            if (board[height + 2][pos + 1] == ' ') board[height + 2][pos + 1] = '_';  // Casque (droite)
+            if (board[height + 2][pos - 1] == ' ') board[height + 2][pos - 1] = '|';  // Casque (gauche)
+            if (board[height + 4][pos] == ' ') board[height + 4][pos] = '|';          // Ceinture
+            if (board[height + 5][pos] == ' ') board[height + 5][pos] = 'O';          // Corps (supérieur)
+            if (board[height + 4][pos + 1] == ' ') board[height + 4][pos + 1] = '\\'; // Bras droit
+            if (board[height + 4][pos - 1] == ' ') board[height + 4][pos - 1] = '/';  // Bras gauche
+            if (board[height + 3][pos + 1] == ' ') board[height + 3][pos + 1] = '/';  // Bras droit (bas)
+            if (board[height + 3][pos - 1] == ' ') board[height + 3][pos - 1] = '\\'; // Bras gauche (bas)
+            if (board[height + 2][pos] == ' ') board[height + 2][pos] = 'O';          // Tête
+            if (board[height + 1][pos] == ' ') board[height + 1][pos] = '\\';         // Torse (gauche)
+            if (board[height + 1][pos + 1] == ' ') board[height + 1][pos + 1] = '|';  // Torse (droite)
+            if (board[height + 3][pos] == ' ') board[height + 3][pos] = '_';          // Bas du corps
+            if (board[height + 1][pos + 1] == ' ') board[height + 1][pos + 1] = '*';  // Épée
+            if (board[height][pos - 1] == ' ') board[height][pos - 1] = '/';          // Jambes gauche
+            if (board[height][pos + 1] == ' ') board[height][pos + 1] = '\\';         // Jambes droite
             break;
     }
 }
-
-
-
-

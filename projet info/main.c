@@ -369,11 +369,11 @@ void stop_music() {
 }
 
 void clear_character(int row, int col, char board[row][col], int pos, int height) {
-    for (int i = height; i < height + 6; i++) { // Supposant que la hauteur max est 6
-        for (int j = pos - 2; j <= pos + 2; j++) { // Supposant que la largeur max est 2
+    for (int i = height; i < height + 6; i++) { 
+        for (int j = pos - 2; j <= pos + 2; j++) { 
             if (i >= 0 && i < row && j >= 0 && j < col) {
-                if (board[i][j] != 'I' && board[i][j] != 'D') { // Ne pas effacer obstacles ni sol
-                    board[i][j] = ' '; // Effacer uniquement les zones sûres
+                if (board[i][j] != 'I' && board[i][j] != 'D') { 
+                    board[i][j] = ' '; 
                 }
             }
         }
@@ -393,7 +393,7 @@ bool check_collision_precise(char board[SCREEN_HEIGHT][SCREEN_WIDTH],
                              int player_height, 
                              bool is_on_ground,
                              GameState* game_state) {
-    // Définir les zones de collision (offsets relatifs au personnage)
+   
     int offsets[][2] = {
         {0, 0}, {1, 0}, {1, -1}, {1, 1},  // Torse et bras
         {2, -1}, {2, 1}, {2, 0},          // Jambes
@@ -479,7 +479,7 @@ typedef struct {
 } HighScore;
 
 void save_high_score(const char* filename, const char* player_name, int score) {
-    HighScore scores[MAX_SCORES + 1];  // +1 pour inclure le nouveau score
+    HighScore scores[MAX_SCORES + 1]; 
     int num_scores = 0;
 
     // Charger les scores existants
@@ -538,7 +538,6 @@ void display_high_scores(const char* filename) {
     printf("=== TABLEAU DES MEILLEURS SCORES ===\n");
     printf("-------------------------------------\n");
 
-    // Charger et afficher les scores
     while (num_scores < MAX_SCORES && 
            fscanf(file, "%49[^,],%d\n", 
            scores[num_scores].name, 
@@ -562,19 +561,16 @@ void display_high_scores(const char* filename) {
 
 
 void save_game(const char* filename,char* player_name, GameSettings* settings, GameState* game_state) {
-    // Sauvegarde du jeu existante
     FILE* file = fopen(filename, "a");
     if (file == NULL) {
         printf("Erreur lors de l'ouverture du fichier pour sauvegarder.\n");
         return;
     }
 
-    // Sauvegarde des paramètres de jeu
     fprintf(file, "%s, %d", player_name ,game_state->score);
     
     fclose(file);
 
-    // Sauvegarder le score dans le high score
     save_high_score("high_scores.txt", player_name, game_state->score);
 
     printf("GAME OVER DOMMAGE !!!! (Si vous voulez éviter les obstacles les plus difficiles maintenez w, mais arriverez-vous à le faire ? :)) )\n");
@@ -591,12 +587,10 @@ void load_game(const char* filename, GameSettings* settings, GameState* game_sta
         return;
     }
 
-    // Chargement des paramètres sauvegardés
     fscanf(file, "%d", &game_state->score);
     fscanf(file, "%d", &settings->initial_scroll_delay);
     fscanf(file, "%d", &settings->obstacle_frequency);
 
-    // Mise à jour des autres paramètres basés sur la difficulté
     settings->current_scroll_delay = settings->initial_scroll_delay;
 
     fclose(file);
@@ -753,12 +747,11 @@ int main() {
 
         handle_jump(&jump_state);
         
-        // Mise à jour de la position du personnage
         jump_character(board, Class, &jump_state);
         
         bool is_on_ground = !jump_state.is_jumping && !jump_state.is_falling;
         if (check_collision_precise(board, Class, PLAYER_COL, jump_state.ground_level + jump_state.jump_height, is_on_ground, &game_state)) {
-            break; // Collision fatale
+            break; 
         }
         
         input = getch();
@@ -771,7 +764,7 @@ int main() {
         print_board(SCREEN_HEIGHT, SCREEN_WIDTH, board);
         display_game_stats(&game_state);
 
-        usleep(50000);  // Smooth game loop timing
+        usleep(50000);  
     }
     stop_music();
     game_over_musique();

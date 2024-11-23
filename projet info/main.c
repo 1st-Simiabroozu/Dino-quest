@@ -55,22 +55,89 @@ typedef struct {
     int min_scroll_delay;        // Délai minimum
     int acceleration_rate;       // Taux d'accélération
     int obstacle_frequency;      // Fréquence d'apparition des obstacles (1-10)
-    int score;                   // Score du joueur
+    int score;          // Score du joueur
 } GameSettings;
+
+typedef struct {
+    char* pseudo;  // Nom du joueur
+    int score;     // Score du joueur
+} profile;
+
+void save_score(char* pseudo, int score) {
+    FILE* f = fopen("score", "r");
+
+    if (f == NULL) {
+        // Si le fichier n'existe pas, créez-le et ajoutez le premier score
+        f = fopen("score", "w");
+        fprintf(f, "%s - %d\n", pseudo, score);
+        fclose(f);
+    } else {
+        // Lire les scores existants
+        fclose(f);
+        profile* profiles;
+        int lines = read_file(&profiles);
+
+        // Insérer le nouveau score à la bonne position
+        int i = 0;
+        while (i < lines && score < profiles[i].score) i++;
+
+        for (int j = lines; j > i; j--) {
+            profiles[j] = profiles[j - 1];
+        }
+
+        profiles[i] = (profile){strdup(pseudo), score};  // Copier pseudo dynamiquement
+
+        // Réécrire les scores dans le fichier
+        f = fopen("score", "w");
+        for (int j = 0; j < lines + 1; j++) {
+            fprintf(f, "%s - %d\n", profiles[j].pseudo, profiles[j].score);
+            free(profiles[j].pseudo);  // Libérer la mémoire de chaque pseudo
+        }
+        fclose(f);
+
+        free(profiles);  // Libérer la mémoire du tableau de profils
+    }
+}
+
+int read_file(profile** profiles) {
+    FILE* f = fopen("score", "r");
+    if (f == NULL) return 0;
+
+    char* t_pseudo = malloc(sizeof(char) * 13);
+    int t_score;
+    int lines = 0;
+
+    while (fscanf(f, "%s - %d\n", t_pseudo, &t_score) == 2) lines++;
+    fclose(f);
+
+    // Allocation de mémoire pour les profils
+    *profiles = malloc(sizeof(profile) * (lines + 1));
+
+    // Relire le fichier et remplir les profils
+    f = fopen("score", "r");
+    for (int i = 0; fscanf(f, "%s - %d\n", t_pseudo, &t_score) == 2 && i < lines; i++) {
+        (*profiles)[i] = (profile){strdup(t_pseudo), t_score};  // Copie dynamique du pseudo
+    }
+    fclose(f);
+
+    free(t_pseudo);  // Libérer le buffer temporaire
+    return lines;    // Retourner le nombre de lignes
+}
+
 
 /// Variables Globales pour gestion du temps : vous pouvez ajuster selon besoins.
 int acquisition_time ;
 double gravity_time ;
 pid_t pid_musique = -1;
 
-#define DIFFICULTY_EASY 1
-#define DIFFICULTY_MEDIUM 2
-#define DIFFICULTY_HARD 3
+#define DIFFICULTY_EASY 'a'
+#define DIFFICULTY_MEDIUM 'b'
+#define DIFFICULTY_HARD 'c'
 
 void init_game_state(GameState* state) {
     state->score = 0;
     state->lives = MAX_LIVES;
-    state->current_speed = 20000;  // Faster initial speed
+    state->current_speed = 50000;  // Faster initial speed
     state->is_invincible = false;
 }
 
@@ -315,26 +382,7 @@ void clear_character(int row, int col, char board[row][col], int pos, int height
 
 
 
-int choose_difficulty() {
-    clear();
-    printf("Pour Sauter appuyez sur w\n");
-    printf("\n=== Choisissez la difficulté ===\n");
-    printf("1. Facile (Débutant)\n");
-    printf("2. Moyen (Intermédiaire)\n");
-    printf("3. Difficile (Expert)\n");
-    printf("\nVotre choix (1-3): ");
-    
 
-    
-    int choice;
-    scanf("%d", &choice);
-    while(getchar() != '\n'); // Vider le buffer
-    
-    if(choice < 1 || choice > 3) {
-        choice = DIFFICULTY_MEDIUM; // Par défaut
-    }
-    return choice;
-}
 
 
 
@@ -417,20 +465,124 @@ void next_level(GameSettings *settings, GameState *game_state) {
 
 
 
-void save_game(const char* filename, GameSettings* settings, GameState* game_state) {
-    FILE* file = fopen(filename, "w");
+
+
+
+
+
+#define MAX_SCORES 10
+#define MAX_NAME_LENGTH 50
+
+typedef struct {
+    char name[MAX_NAME_LENGTH];
+    int score;
+} HighScore;
+
+void save_high_score(const char* filename, const char* player_name, int score) {
+    HighScore scores[MAX_SCORES + 1];  // +1 pour inclure le nouveau score
+    int num_scores = 0;
+
+    // Charger les scores existants
+    FILE* file = fopen(filename, "r");
+    if (file != NULL) {
+        while (num_scores < MAX_SCORES && 
+               fscanf(file, "%49[^,],%d\n", scores[num_scores].name, &scores[num_scores].score) == 2) {
+            num_scores++;
+        }
+        fclose(file);
+    }
+
+    // Ajouter le nouveau score
+    strncpy(scores[num_scores].name, player_name, sizeof(scores[num_scores].name) - 1);
+    scores[num_scores].name[sizeof(scores[num_scores].name) - 1] = '\0';  // Assurer la terminaison nulle
+    scores[num_scores].score = score;
+    num_scores++;
+
+    // Trier les scores par ordre décroissant
+    for (int i = 0; i < num_scores - 1; i++) {
+        for (int j = 0; j < num_scores - i - 1; j++) {
+            if (scores[j].score < scores[j + 1].score) {
+                HighScore temp = scores[j];
+                scores[j] = scores[j + 1];
+                scores[j + 1] = temp;
+            }
+        }
+    }
+
+    // Sauvegarder uniquement les meilleurs scores
+    file = fopen(filename, "a");
+    if (file != NULL) {
+        for (int i = 0; i < MAX_SCORES && i < num_scores; i++) {
+            fprintf(file, "%s,%d\n", scores[i].name, scores[i].score);
+        }
+        fclose(file);
+    } else {
+        perror("Erreur lors de l'ouverture du fichier pour sauvegarder les scores.");
+    }
+}
+
+
+
+
+void display_high_scores(const char* filename) {
+    HighScore scores[MAX_SCORES];
+    int num_scores = 0;
+
+    FILE* file = fopen(filename, "r");
+    if (file == NULL) {
+        printf("Aucun score enregistré.\n");
+        return;
+    }
+
+    clear();
+    printf("=== TABLEAU DES MEILLEURS SCORES ===\n");
+    printf("-------------------------------------\n");
+
+    // Charger et afficher les scores
+    while (num_scores < MAX_SCORES && 
+           fscanf(file, "%49[^,],%d\n", 
+           scores[num_scores].name, 
+           &scores[num_scores].score) == 2) {
+        printf("%d. %s - %d points\n", 
+               num_scores + 1, 
+               scores[num_scores].name, 
+               scores[num_scores].score);
+        num_scores++;
+    }
+    fclose(file);
+
+    printf("\nAppuyez sur une touche pour continuer...");
+    getchar();
+}
+
+
+
+
+
+
+
+void save_game(const char* filename,char* player_name, GameSettings* settings, GameState* game_state) {
+    // Sauvegarde du jeu existante
+    FILE* file = fopen(filename, "a");
     if (file == NULL) {
         printf("Erreur lors de l'ouverture du fichier pour sauvegarder.\n");
         return;
     }
 
     // Sauvegarde des paramètres de jeu
-    fprintf(file, "Le score du jeu obtenu lors de la précédente partie est : %d", game_state->score);
+    fprintf(file, "%s, %d", player_name ,game_state->score);
     
     fclose(file);
-    printf("GAME OVER DOMMAGE !!!! (Si vous voulez éviter les obstacles les plus difficiles maintenenez w, mais arriverez-vous à le faire ? :)) )\n");
+
+    // Sauvegarder le score dans le high score
+    save_high_score("high_scores.txt", player_name, game_state->score);
+
+    printf("GAME OVER DOMMAGE !!!! (Si vous voulez éviter les obstacles les plus difficiles maintenez w, mais arriverez-vous à le faire ? :)) )\n");
     printf("Jeu sauvegardé avec succès.\n");
 }
+
+
+
 
 void load_game(const char* filename, GameSettings* settings, GameState* game_state) {
     FILE* file = fopen(filename, "r");
@@ -451,51 +603,68 @@ void load_game(const char* filename, GameSettings* settings, GameState* game_sta
     printf("Jeu chargé avec succès.\n");
 }
 
-
-void ask_for_player_name(char* filename) {
-    char name[100];  // Tableau pour le nom du joueur
-
-    clear();
+void get_player_name(char* player_name, int max_length) {
+    system("clear");
+    char input[max_length];
+    
     printf("=== Entrez votre nom ===\n");
-    printf("Nom du joueur: ");
-    fgets(name, sizeof(name), stdin);
-    
-    // Enlever le '\n' à la fin du nom, si présent
-    name[strcspn(name, "\n")] = 0;
-    
-    FILE* file = fopen(filename, "w");
-    if (file == NULL) {
-        printf("Erreur lors de la sauvegarde du nom.\n");
-        return;
-    }
-    
-    fprintf(file, "Nom du joueur: %s\n", name);
-    fclose(file);
+    printf("Nom du joueur : ");
+    scanf("%s", player_name);
 
-    printf("Nom du joueur sauvegardé: %s\n", name);
-    usleep(1000000);  // Pause d'une seconde avant de retourner au menu
+}
+
+char choose_game_action() { 
+char action;
+bool valid_choice = false;
+printf("=== Choisissez une action ===\n"); 
+    printf("a. Nouvelle Partie\n"); 
+    printf("b. Voir les Meilleurs Scores\n"); 
+    printf("c. Quitter\n"); 
+    printf("\nVotre choix (a-c): "); 
+do
+{
+    printf("\b \b");; 
+    
+
+    scanf(" %c", &action); 
+
+    if (action == 'a' || action == 'b' || action == 'c') { valid_choice = true; } 
+    else { }
+  
+}while (action != 'a' && action != 'b' && action != 'c');
+
+  
+return action;
+
+
 }
 
 
-int choose_game_action() {
+char choose_difficulty() {
     clear();
-    printf("=== Choisissez une action ===\n");
-    printf("1. Nouvelle Partie\n");
-    printf("2. Charger une Partie Sauvegardée\n");
-    printf("3. Quitter\n");
+    printf("Pour Sauter appuyez sur w\n");
+    printf("\n=== Choisissez la difficulté ===\n");
+    printf("a. Facile (Débutant)\n");
+    printf("b. Moyen (Intermédiaire)\n");
+    printf("c. Difficile (Expert)\n");
     printf("\nVotre choix (1-3): ");
     
-    int choice;
-    scanf("%d", &choice);
-    while(getchar() != '\n'); // Vider le buffer
+    char choice;
+    bool valid_choice = false;    
+    do
+    {
+        printf("\b \b");; 
     
-    if (choice < 1 || choice > 3) {
-        choice = 1; // Par défaut, commencer une nouvelle partie
-    }
+
+        scanf(" %c", &choice); 
+
+    if (choice == 'a' || choice == 'b' || choice == 'c') { valid_choice = true; } 
+    else { }
+  
+}while (choice != 'a' && choice != 'b' && choice != 'c');
 
     return choice;
 }
-
 
 
 
@@ -523,29 +692,40 @@ int main() {
     Display_Title();
 
     char filename[] = "player_data.txt";  
-    char player_name[100]; 
+    char player_name[100];
+    get_player_name(player_name, sizeof(player_name));
 
-    ask_for_player_name(filename);
+    system("clear");
+
+    char action = choose_game_action();
     
-    int action = choose_game_action();
-
-    if (action == 1) {
+    if (action == 'a') {
         printf("Nouvelle Partie commence...\n");
         init_game_state(&game_state);
-        int difficulty = choose_difficulty();
-        init_game_settings(&settings, difficulty);
     } 
-    else if (action == 2) {
-        printf("Chargement de la partie...\n");
-        load_game("save_game.txt", &settings, &game_state);
+    else if (action == 'b') {
+        display_high_scores("high_scores.txt");
     } 
-    else {
-        printf("Quitter le jeu.\n");
+    else if(action == 'c'){
+        stop_music();
         return 0;
     }
 
-    int difficulty = choose_difficulty();
-    init_game_settings(&settings, difficulty);
+    char difficulty = choose_difficulty();
+    if (difficulty == 'a')
+    {
+        init_game_settings(&settings, difficulty);
+    }else if (difficulty == 'b')
+    {
+        init_game_settings(&settings, difficulty);
+    }
+    
+    else if(difficulty == 'c'){
+       init_game_settings(&settings, difficulty);
+    }
+    
+    
+    
     
     system("clear");
     Class = Choice_the_character(Class);
@@ -597,7 +777,8 @@ int main() {
     game_over_musique();
     sleep(4);
     clear();   
-    save_game("save_game.txt", &settings, &game_state); 
+    save_game("high_scores.txt", player_name, &settings, &game_state); 
+    save_score(player_name, game_state.score);
     sleep(6);
     
     clear();    

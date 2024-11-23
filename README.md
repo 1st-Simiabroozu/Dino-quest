@@ -26,5 +26,5 @@ make run
 ### Points importants :
 1. **Titre et description** : Le projet s'appelle "Dino Quest" et la description décrit brièvement le gameplay.
 2. **Dépendances** : La section détaille les outils à installer pour que le jeu fonctionne correctement.
-3. **Utilisation** : Il est expliqué comment lancer le jeu après avoir installé les dépendances nécessaires.
+3. **Utilisation** : Il est expliqué comment lancer le jeu après avoir installé les dépendances nécessaires. (IL FAUT ZOOM-OUT AVANT DE LANCER LE JEU POUR VOIR CORRECTEMENT LE MENU)
 4. **Licence** : La licence "Djoss Maeze Sangwa Saint-Louis".
